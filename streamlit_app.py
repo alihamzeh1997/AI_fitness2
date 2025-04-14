@@ -71,7 +71,8 @@ def extract_frames(
     fps: int = 4, 
     min_dim: int = 300, 
     max_dim: int = 400, 
-    max_frames: int = 30
+    max_frames: int = 30,
+    progress_bar=None
 ) -> List[Tuple[float, np.ndarray]]:
     """Extract frames from a video at specified intervals with timestamps."""
     try:
@@ -92,6 +93,8 @@ def extract_frames(
             # Take frames evenly across the video
             indices = np.linspace(0, num_frames-1, min(max_frames, num_frames)).astype(int)
             for idx in indices:
+                if progress_bar:
+                    progress_bar.progress((idx + 1) / len(indices))
                 timestamp = idx / video_fps
                 frame = vr[idx].asnumpy()
                 frame = smart_resize(frame, min_dim, max_dim)
@@ -105,6 +108,9 @@ def extract_frames(
         
         # Distribute frames evenly across video duration
         for i in range(total_frames_to_extract):
+            if progress_bar:
+                progress_bar.progress((i + 1) / total_frames_to_extract)
+                
             # Calculate frame index for even distribution
             progress = i / (total_frames_to_extract - 1 if total_frames_to_extract > 1 else 1)
             frame_index = min(int(progress * (num_frames - 1)), num_frames - 1)
@@ -149,18 +155,32 @@ def analyze_with_openrouter_individual_frames(
         tmpfile_path = tmpfile.name
     
     try:
+        # Processing status display
+        progress_status = st.empty()
+        progress_status.info("📁 Loading video file...")
+        
         # Check if file is valid video
         try:
             vr = VideoReader(tmpfile_path)
             video_fps = vr.get_avg_fps()
             num_frames = len(vr)
             total_duration_sec = round(num_frames / video_fps)
+            progress_status.info(f"📊 Video loaded: {num_frames} frames, {total_duration_sec}s duration")
         except Exception as e:
             os.unlink(tmpfile_path)
             st.error(f"Error loading video: {str(e)}. Please check the file format.")
             return f"Error loading video: {str(e)}. Please check the file format.", []
         
-        frames = extract_frames(tmpfile_path, fps=frames_per_second, max_frames=max_frames)
+        progress_status.info("🔍 Extracting frames...")
+        
+        # Create progress bar for frame extraction
+        frame_extraction_bar = st.progress(0)
+        frames = extract_frames(
+            tmpfile_path, 
+            fps=frames_per_second, 
+            max_frames=max_frames,
+            progress_bar=frame_extraction_bar
+        )
         
         if not frames:
             os.unlink(tmpfile_path)
@@ -168,7 +188,7 @@ def analyze_with_openrouter_individual_frames(
             return "Error: No frames could be extracted from the video.", []
         
         # Display frame info
-        st.info(f"Extracted {len(frames)} frames covering {len(frames)/frames_per_second:.2f} seconds of video")
+        progress_status.info(f"🎞️ Extracted {len(frames)} frames covering {len(frames)/frames_per_second:.2f} seconds of video")
         
         # Create a visual preview of frames (limit to 5 for display)
         if frames:
@@ -178,7 +198,7 @@ def analyze_with_openrouter_individual_frames(
                 col.image(
                     cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
                     caption=f"Frame {i+1}: {timestamp:.2f}s",
-                    use_column_width=True
+                    use_container_width=True
                 )
             
             # Show first frame details
@@ -218,8 +238,12 @@ def analyze_with_openrouter_individual_frames(
             {"role": "system", "content": Role + "\n" + TaskPrompt + "\n" + OutputFormat}
         ]
         
-        # Build content for API
+        progress_status.info("🖼️ Preparing frames for analysis...")
+        
+        # Build content for API with progress tracking
+        frame_prep_bar = st.progress(0)
         for i, (timestamp, frame) in enumerate(frames):
+            frame_prep_bar.progress((i + 1) / len(frames))
             frame_base64, _ = image_to_base64(frame, calculate_size=False)
             Content.append({
                 "role": "user",
@@ -236,12 +260,23 @@ def analyze_with_openrouter_individual_frames(
             })
         
         # Show progress bar for API request
-        with st.spinner(f"Analyzing with {model_name}..."):
+        progress_status.info(f"🤖 Analyzing with {model_name.split('/')[1]}...")
+        api_spinner = st.empty()
+        
+        with api_spinner:
+            api_progress = st.progress(0)
             try:
-                # Debug info
-                st.write(f"Making API request to {base_url}/chat/completions with model {model_name}")
-                
                 # Make the API request
+                progress_status.info(f"📤 Sending request to OpenRouter API ({model_name})...")
+                
+                # Simulate progress since we can't get real-time updates from the API
+                for percent in range(1, 101):
+                    api_progress.progress(percent/100)
+                    if percent < 90:  # Slow down near the end to avoid false completion
+                        time.sleep(0.1 if percent < 70 else 0.2)
+                    else:
+                        break  # Let the actual completion update to 100%
+                
                 response = requests.post(
                     f"{base_url}/chat/completions",
                     headers=headers,
@@ -255,30 +290,37 @@ def analyze_with_openrouter_individual_frames(
                     timeout=180  # Increased timeout
                 )
                 
+                # Complete the progress bar
+                api_progress.progress(1.0)
+                
                 # Check for HTTP errors
                 if response.status_code != 200:
+                    progress_status.error(f"❌ API Error (Status {response.status_code})")
                     st.error(f"API Error (Status {response.status_code}): {response.text}")
                     return f"API Error (Status {response.status_code}): {response.text}", Content
                 
                 # Parse the response
                 try:
                     response_json = response.json()
-                    st.write("API response received successfully")
+                    progress_status.info("✅ API response received successfully")
                     
                     result = response_json['choices'][0]['message']['content']
                     processing_time = time.time() - start_time
-                    st.success(f"Analysis completed in {processing_time:.2f} seconds")
+                    progress_status.success(f"✨ Analysis completed in {processing_time:.2f} seconds")
                     
                     return result, Content
                 except KeyError as e:
+                    progress_status.error("❌ Unexpected API response format")
                     st.error(f"Unexpected API response format: {str(e)}")
                     st.write("Response content:", response.text)
                     return f"Unexpected API response format: {str(e)}", Content
                 
             except requests.exceptions.Timeout:
+                progress_status.error("⏱️ Request timed out")
                 st.error("Request timed out. The video might be too complex or the service is busy.")
                 return "Error: Request timed out. The video might be too complex or the service is busy.", Content
             except Exception as e:
+                progress_status.error("❌ Error during analysis")
                 st.error(f"Error analyzing with OpenRouter: {str(e)}")
                 return f"Error analyzing with OpenRouter: {str(e)}", Content
     finally:
@@ -316,8 +358,33 @@ def display_sidebar():
             st.session_state.api_key = api_key
             st.success("API key set!")
         
+        # Added settings in sidebar
         st.markdown("---")
-        st.markdown("Created by Your Name. v1.0.1")
+        st.subheader("Advanced Settings")
+        
+        frames_per_second = st.slider(
+            "Frames per second", 
+            min_value=1, 
+            max_value=10, 
+            value=4
+        )
+        
+        max_frames = st.slider(
+            "Maximum frames to analyze", 
+            min_value=5, 
+            max_value=60, 
+            value=20
+        )
+        
+        min_dimension = st.slider(
+            "Frame dimension (px)",
+            min_value=200,
+            max_value=800,
+            value=400
+        )
+        
+        st.markdown("---")
+        st.markdown("Created by ALI HAMZEH. v1.0.1")
 
 # Streamlit app
 def main():
@@ -326,26 +393,39 @@ def main():
     st.title("💪 Fitness Video Analyzer")
     st.write("Upload a fitness video to analyze exercises, count reps, and evaluate form using AI.")
     
-    # Define model options
+    # Define model options with the provided full list
     model_options = {
         "Free Models": [
-            "google/gemini-2.5-pro-exp-03-25:free",
-            "google/gemini-2.0-flash-thinking-exp:free",
+            "google/gemma-3-27b-it:free",
             "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "qwen/qwen2.5-vl-32b-instruct:free"
+            "google/gemini-2.0-flash-thinking-exp:free",
+            "mistralai/mistral-small-3.1-24b-instruct:free",
+            "qwen/qwen2.5-vl-32b-instruct:free",
+            "google/gemini-2.5-pro-exp-03-25:free",
+            "bytedance-research/ui-tars-72b:free",
+            "allenai/molmo-7b-d:free",
+            "meta-llama/llama-4-maverick:free",
+            "moonshotai/kimi-vl-a3b-thinking:free"
         ],
         "Premium Models": [
+            "anthropic/claude-3-opus",
+            "openai/gpt-4o-mini-2024-07-18",
+            "openai/chatgpt-4o-latest",
+            "anthropic/claude-3.5-haiku:beta",
+            "x-ai/grok-vision-beta",
+            "mistralai/pixtral-large-2411",
+            "x-ai/grok-2-vision-1212",
             "anthropic/claude-3.7-sonnet:thinking",
             "anthropic/claude-3.7-sonnet",
-            "openai/chatgpt-4o-latest",
-            "microsoft/phi-4-multimodal-instruct"
+            "microsoft/phi-4-multimodal-instruct",
+            "openai/gpt-4.1"
         ]
     }
     
-    # Create tabs for file upload and settings
-    tab1, tab2 = st.tabs(["Upload Video", "Settings"])
+    # Main content area
+    col_upload, col_model = st.columns([3, 2])
     
-    with tab1:
+    with col_upload:
         # File uploader with better guidance
         uploaded_file = st.file_uploader(
             "Upload a fitness video",
@@ -355,38 +435,13 @@ def main():
         
         # Display placeholder if no file uploaded
         if not uploaded_file:
-            st.image("https://via.placeholder.com/640x360.png?text=Upload+a+fitness+video", use_column_width=True)
+            st.image("https://via.placeholder.com/640x360.png?text=Upload+a+fitness+video", use_container_width=True)
     
-    with tab2:
-        # Simplified settings
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Model selection
-            model_category = st.radio("Model Type", options=["Free Models", "Premium Models"])
-            model_name = st.selectbox("Select Model", options=model_options[model_category])
-            
-            frames_per_second = st.slider(
-                "Frames per second", 
-                min_value=1, 
-                max_value=10, 
-                value=4
-            )
-        
-        with col2:
-            max_frames = st.slider(
-                "Maximum frames to analyze", 
-                min_value=5, 
-                max_value=60, 
-                value=20
-            )
-            
-            min_dimension = st.slider(
-                "Frame dimension (px)",
-                min_value=200,
-                max_value=800,
-                value=400
-            )
+    with col_model:
+        # Model selection
+        st.subheader("Model Selection")
+        model_category = st.radio("Model Type", options=["Free Models", "Premium Models"])
+        model_name = st.selectbox("Select Model", options=model_options[model_category])
     
     # Analysis button
     if st.button("🔍 Analyze Video", type="primary", use_container_width=True, disabled=not uploaded_file):
@@ -411,8 +466,8 @@ def main():
                         # Run analysis
                         response_text, content = analyze_with_openrouter_individual_frames(
                             base_url, headers, uploaded_file,
-                            frames_per_second=frames_per_second,
-                            max_frames=max_frames,
+                            frames_per_second=st.session_state.frames_per_second,
+                            max_frames=st.session_state.max_frames,
                             model_name=model_name
                         )
                         
@@ -438,7 +493,7 @@ def main():
                                     "metadata": {
                                         "model": model_name,
                                         "frames_analyzed": len(content) - 1 if content else 0,
-                                        "frames_per_second": frames_per_second,
+                                        "frames_per_second": st.session_state.frames_per_second,
                                         "date": time.strftime("%Y-%m-%d %H:%M:%S")
                                     }
                                 }
