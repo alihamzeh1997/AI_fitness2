@@ -11,9 +11,21 @@ import json
 import time
 from typing import List, Tuple, Optional, Dict, Any
 
-# Initialize session state for API key
+# Initialize session state variables
 if "api_key" not in st.session_state:
     st.session_state.api_key = os.getenv('OPENROUTER_API_KEY', '')
+if "frames_per_second" not in st.session_state:
+    st.session_state.frames_per_second = 4
+if "max_frames" not in st.session_state:
+    st.session_state.max_frames = 20
+if "min_dimension" not in st.session_state:
+    st.session_state.min_dimension = 400
+if "temperature" not in st.session_state:
+    st.session_state.temperature = 0.2
+if "top_p" not in st.session_state:
+    st.session_state.top_p = 0.1
+if "top_k" not in st.session_state:
+    st.session_state.top_k = 40
 
 # Configure page
 st.set_page_config(
@@ -144,7 +156,11 @@ def analyze_with_openrouter_individual_frames(
     video_file,
     frames_per_second: int = 4, 
     max_frames: int = 30, 
-    model_name: str = "google/gemini-2.5-pro-exp-03-25"
+    min_dim: int = 400,
+    model_name: str = "google/gemini-2.5-pro-exp-03-25",
+    temperature: float = 0.2,
+    top_p: float = 0.1,
+    top_k: int = 40
 ) -> Tuple[str, List]:
     """Analyze video frames using OpenRouter API."""
     start_time = time.time()
@@ -178,6 +194,8 @@ def analyze_with_openrouter_individual_frames(
         frames = extract_frames(
             tmpfile_path, 
             fps=frames_per_second, 
+            min_dim=min_dim,
+            max_dim=min_dim + 100, 
             max_frames=max_frames,
             progress_bar=frame_extraction_bar
         )
@@ -260,7 +278,10 @@ def analyze_with_openrouter_individual_frames(
             })
         
         # Show progress bar for API request
-        progress_status.info(f"🤖 Analyzing with {model_name.split('/')[1]}...")
+        model_display_name = model_name.split('/')[1]
+        progress_status.info(f"🤖 Analyzing with {model_display_name}...")
+        st.write(f"**Model parameters:** Temperature: {temperature}, Top-P: {top_p}, Top-K: {top_k}")
+        
         api_spinner = st.empty()
         
         with api_spinner:
@@ -277,16 +298,23 @@ def analyze_with_openrouter_individual_frames(
                     else:
                         break  # Let the actual completion update to 100%
                 
+                # Prepare the request payload with parameters
+                payload = {
+                    "model": model_name,
+                    "messages": Content,
+                    "temperature": temperature,
+                    "top_p": top_p,
+                    "max_tokens": 2000  # Increased for more detailed output
+                }
+                
+                # Add top_k if it's provided (some models don't support this)
+                if top_k > 0:
+                    payload["top_k"] = top_k
+                    
                 response = requests.post(
                     f"{base_url}/chat/completions",
                     headers=headers,
-                    json={
-                        "model": model_name,
-                        "messages": Content,
-                        "temperature": 0.2,  # Slightly increased for more detailed output
-                        "top_p": 0.1,  # Slightly increased
-                        "max_tokens": 2000  # Increased for more detailed output
-                    },
+                    json=payload,
                     timeout=180  # Increased timeout
                 )
                 
@@ -360,31 +388,75 @@ def display_sidebar():
         
         # Added settings in sidebar
         st.markdown("---")
-        st.subheader("Advanced Settings")
+        st.subheader("Video Settings")
         
         frames_per_second = st.slider(
             "Frames per second", 
             min_value=1, 
             max_value=10, 
-            value=4
+            value=st.session_state.frames_per_second,
+            key="fps_slider"
         )
+        st.session_state.frames_per_second = frames_per_second
         
         max_frames = st.slider(
             "Maximum frames to analyze", 
             min_value=5, 
             max_value=60, 
-            value=20
+            value=st.session_state.max_frames,
+            key="max_frames_slider"
         )
+        st.session_state.max_frames = max_frames
         
         min_dimension = st.slider(
             "Frame dimension (px)",
             min_value=200,
             max_value=800,
-            value=400
+            value=st.session_state.min_dimension,
+            key="min_dim_slider"
         )
+        st.session_state.min_dimension = min_dimension
         
         st.markdown("---")
-        st.markdown("Created by ALI HAMZEH. v1.0.1")
+        st.subheader("Model Parameters")
+        
+        temperature = st.slider(
+            "Temperature", 
+            min_value=0.0, 
+            max_value=2.0, 
+            value=st.session_state.temperature,
+            step=0.05,
+            format="%.2f",
+            help="Higher values make output more random, lower values more deterministic",
+            key="temp_slider"
+        )
+        st.session_state.temperature = temperature
+        
+        top_p = st.slider(
+            "Top P", 
+            min_value=0.0, 
+            max_value=1.0, 
+            value=st.session_state.top_p,
+            step=0.05,
+            format="%.2f",
+            help="Controls diversity via nucleus sampling",
+            key="top_p_slider"
+        )
+        st.session_state.top_p = top_p
+        
+        top_k = st.number_input(
+            "Top K", 
+            min_value=0, 
+            max_value=100, 
+            value=st.session_state.top_k,
+            step=1,
+            help="Limits token selection to top K options (0 disables)",
+            key="top_k_input"
+        )
+        st.session_state.top_k = top_k
+        
+        st.markdown("---")
+        st.markdown("Created by ALI HAMZEH. v1.0.2")
 
 # Streamlit app
 def main():
@@ -393,34 +465,65 @@ def main():
     st.title("💪 Fitness Video Analyzer")
     st.write("Upload a fitness video to analyze exercises, count reps, and evaluate form using AI.")
     
-    # Define model options with the provided full list
+    # Define model options organized by provider
     model_options = {
-        "Free Models": [
-            "google/gemma-3-27b-it:free",
-            "meta-llama/llama-3.2-11b-vision-instruct:free",
-            "google/gemini-2.0-flash-thinking-exp:free",
-            "mistralai/mistral-small-3.1-24b-instruct:free",
-            "qwen/qwen2.5-vl-32b-instruct:free",
-            "google/gemini-2.5-pro-exp-03-25:free",
-            "bytedance-research/ui-tars-72b:free",
-            "allenai/molmo-7b-d:free",
-            "meta-llama/llama-4-maverick:free",
-            "moonshotai/kimi-vl-a3b-thinking:free"
-        ],
-        "Premium Models": [
-            "anthropic/claude-3-opus",
-            "openai/gpt-4o-mini-2024-07-18",
-            "openai/chatgpt-4o-latest",
-            "anthropic/claude-3.5-haiku:beta",
-            "x-ai/grok-vision-beta",
-            "mistralai/pixtral-large-2411",
-            "x-ai/grok-2-vision-1212",
-            "anthropic/claude-3.7-sonnet:thinking",
-            "anthropic/claude-3.7-sonnet",
-            "microsoft/phi-4-multimodal-instruct",
-            "openai/gpt-4.1"
-        ]
+        "Free Models": {
+            "Google": [
+                "google/gemma-3-27b-it:free",
+                "google/gemini-2.0-flash-thinking-exp:free",
+                "google/gemini-2.5-pro-exp-03-25:free"
+            ],
+            "Meta": [
+                "meta-llama/llama-3.2-11b-vision-instruct:free",
+                "meta-llama/llama-4-maverick:free"
+            ],
+            "Mistral AI": [
+                "mistralai/mistral-small-3.1-24b-instruct:free"
+            ],
+            "Qwen": [
+                "qwen/qwen2.5-vl-32b-instruct:free"
+            ],
+            "ByteDance": [
+                "bytedance-research/ui-tars-72b:free"
+            ],
+            "Allen AI": [
+                "allenai/molmo-7b-d:free"
+            ],
+            "Moonshot AI": [
+                "moonshotai/kimi-vl-a3b-thinking:free"
+            ]
+        },
+        "Premium Models": {
+            "Anthropic": [
+                "anthropic/claude-3-opus",
+                "anthropic/claude-3.5-haiku:beta",
+                "anthropic/claude-3.7-sonnet:thinking",
+                "anthropic/claude-3.7-sonnet"
+            ],
+            "OpenAI": [
+                "openai/gpt-4o-mini-2024-07-18",
+                "openai/chatgpt-4o-latest",
+                "openai/gpt-4.1"
+            ],
+            "X AI": [
+                "x-ai/grok-vision-beta",
+                "x-ai/grok-2-vision-1212"
+            ],
+            "Mistral AI": [
+                "mistralai/pixtral-large-2411"
+            ],
+            "Microsoft": [
+                "microsoft/phi-4-multimodal-instruct"
+            ]
+        }
     }
+    
+    # Flatten the models for selection
+    def flatten_models(model_dict):
+        flat_models = []
+        for provider, models in model_dict.items():
+            flat_models.extend(models)
+        return flat_models
     
     # Main content area
     col_upload, col_model = st.columns([3, 2])
@@ -441,7 +544,14 @@ def main():
         # Model selection
         st.subheader("Model Selection")
         model_category = st.radio("Model Type", options=["Free Models", "Premium Models"])
-        model_name = st.selectbox("Select Model", options=model_options[model_category])
+        
+        # Select provider first, then model
+        providers = list(model_options[model_category].keys())
+        selected_provider = st.selectbox("Provider", options=providers)
+        
+        # Then show models from that provider
+        available_models = model_options[model_category][selected_provider]
+        model_name = st.selectbox("Select Model", options=available_models)
     
     # Analysis button
     if st.button("🔍 Analyze Video", type="primary", use_container_width=True, disabled=not uploaded_file):
@@ -468,7 +578,11 @@ def main():
                             base_url, headers, uploaded_file,
                             frames_per_second=st.session_state.frames_per_second,
                             max_frames=st.session_state.max_frames,
-                            model_name=model_name
+                            min_dim=st.session_state.min_dimension,
+                            model_name=model_name,
+                            temperature=st.session_state.temperature,
+                            top_p=st.session_state.top_p,
+                            top_k=st.session_state.top_k
                         )
                         
                         if response_text.startswith("Error") or response_text.startswith("API Error"):
@@ -494,6 +608,9 @@ def main():
                                         "model": model_name,
                                         "frames_analyzed": len(content) - 1 if content else 0,
                                         "frames_per_second": st.session_state.frames_per_second,
+                                        "temperature": st.session_state.temperature,
+                                        "top_p": st.session_state.top_p,
+                                        "top_k": st.session_state.top_k,
                                         "date": time.strftime("%Y-%m-%d %H:%M:%S")
                                     }
                                 }
