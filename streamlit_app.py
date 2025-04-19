@@ -505,6 +505,7 @@ def main():
             "OpenAI": [
                 "openai/gpt-4o-mini-2024-07-18",
                 "openai/chatgpt-4o-latest",
+                "openai/o3",
                 "openai/o4-mini-high",
                 "openai/gpt-4.1-mini",
                 "openai/gpt-4.1"
