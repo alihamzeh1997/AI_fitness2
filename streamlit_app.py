@@ -304,7 +304,7 @@ def analyze_with_openrouter_individual_frames(
                     "messages": Content,
                     "temperature": temperature,
                     "top_p": top_p,
-                    "max_tokens": 3000  # Increased for more detailed output
+                    "max_tokens": 10000  # Increased for more detailed output
                 }
                 
                 # Add top_k if it's provided (some models don't support this)
