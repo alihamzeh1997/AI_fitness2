@@ -304,7 +304,7 @@ def analyze_with_openrouter_individual_frames(
                     "messages": Content,
                     "temperature": temperature,
                     "top_p": top_p,
-                    "max_tokens": 30000  # Increased for more detailed output
+                    "max_tokens": 3000  # Increased for more detailed output
                 }
                 
                 # Add top_k if it's provided (some models don't support this)
@@ -494,6 +494,8 @@ def main():
             ]
         },
         "Premium Models": {
+            "Google": [
+                "google/gemini-2.5-flash-preview"],
             "Anthropic": [
                 "anthropic/claude-3-opus",
                 "anthropic/claude-3.5-haiku:beta",
@@ -503,6 +505,8 @@ def main():
             "OpenAI": [
                 "openai/gpt-4o-mini-2024-07-18",
                 "openai/chatgpt-4o-latest",
+                "openai/o4-mini-high",
+                "openai/gpt-4.1-mini",
                 "openai/gpt-4.1"
             ],
             "X AI": [
