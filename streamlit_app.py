@@ -536,11 +536,22 @@ def main():
     
     with col_upload:
         # File uploader with better guidance
-        uploaded_file = st.file_uploader(
-            "Upload a fitness video",
-            type=["mp4", "mov", "avi", "mkv"],
-            help="For best results, use a clear video showing the full body movement"
-        )
+        uploaded_file = st.file_uploader("Upload video", type=None)
+        if uploaded_file is not None:
+        # Check file extension manually
+            if uploaded_file.name.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.mpeg4')):
+            # Process the file
+                pass
+            else:
+                st.error("Please upload a valid video file")
+
+
+
+        # uploaded_file = st.file_uploader(
+        #     "Upload a fitness video",
+        #     type=["mp4", "mov", "avi", "mkv"],
+        #     help="For best results, use a clear video showing the full body movement"
+        # )
         
         # Display placeholder if no file uploaded
         if not uploaded_file:
