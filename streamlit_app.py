@@ -538,7 +538,7 @@ def main():
         # File uploader with better guidance
         uploaded_file = st.file_uploader(
             "Upload a fitness video",
-            type=["mp4", ".mov", "avi", "mkv"],
+            type=["mp4", "mov", "avi", "mkv"],
             help="For best results, use a clear video showing the full body movement"
         )
         
