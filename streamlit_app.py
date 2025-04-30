@@ -544,7 +544,8 @@ def main():
         
         # Display placeholder if no file uploaded
         if not uploaded_file:
-            st.image("https://cdn3.iconfinder.com/data/icons/linecons-free-vector-icons-pack/32/video-512.png", use_container_width=True, width = 150)
+            # st.image("https://cdn3.iconfinder.com/data/icons/linecons-free-vector-icons-pack/32/video-512.png", use_container_width=True, width = 150)
+            st.markdown('🎞️ Please upload your video')
     
     with col_model:
         # Model selection
