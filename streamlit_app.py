@@ -495,8 +495,9 @@ def main():
         },
         "Premium Models": {
             "Google": [
+                "google/gemini-3-pro-preview",
                 "google/gemini-2.5-flash-preview",
-                "google/gemini-2.5-pro-preview-03-25"],
+                "google/gemini-2.5-pro"],
             "Anthropic": [
                 "anthropic/claude-3-opus",
                 "anthropic/claude-3.5-haiku:beta",
