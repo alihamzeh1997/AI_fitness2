@@ -466,61 +466,50 @@ def main():
     st.write("Upload a fitness video to analyze exercises, count reps, and evaluate form using AI.")
     
     # Define model options organized by provider
-    model_options = {
+model_options = {
         "Free Models": {
             "Google": [
-                "google/gemma-3-27b-it:free",
-                "google/gemini-2.0-flash-thinking-exp:free",
-                "google/gemini-2.5-pro-exp-03-25:free"
+                "google/gemini-2.0-flash-thinking-exp:free", # Still a great free option
+                "google/gemini-2.0-pro-exp-02-05:free"
+            ],
+            "NVIDIA": [
+                "nvidia/nemotron-nano-12b-2-vl:free" # SOTA Small Vision Model (Verified Free)
             ],
             "Meta": [
                 "meta-llama/llama-3.2-11b-vision-instruct:free",
-                "meta-llama/llama-4-maverick:free"
-            ],
-            "Mistral AI": [
-                "mistralai/mistral-small-3.1-24b-instruct:free"
+                "meta-llama/llama-3.2-90b-vision-instruct:free"
             ],
             "Qwen": [
-                "qwen/qwen2.5-vl-32b-instruct:free"
-            ],
-            "ByteDance": [
-                "bytedance-research/ui-tars-72b:free"
+                "qwen/qwen-2.5-vl-72b-instruct:free" # The latest Vision-Language Qwen
             ],
             "Allen AI": [
-                "allenai/molmo-7b-d:free"
-            ],
-            "Moonshot AI": [
-                "moonshotai/kimi-vl-a3b-thinking:free"
+                "allenai/molmo-7b-d-0924:free" # Excellent specialized vision model
             ]
         },
         "Premium Models": {
             "Google": [
-                "google/gemini-3-pro-preview",
-                "google/gemini-2.5-flash-preview",
-                "google/gemini-2.5-pro"],
-            "Anthropic": [
-                "anthropic/claude-3-opus",
-                "anthropic/claude-3.5-haiku:beta",
-                "anthropic/claude-3.7-sonnet:thinking",
-                "anthropic/claude-3.7-sonnet"
+                "google/gemini-3-pro-preview",       # CONFIRMED: The new 1M context flagship
+                "google/gemini-3-pro-image-preview", # AKA "Nano Banana Pro" - Top tier multimodal
+                "google/gemini-2.5-flash-preview"
             ],
             "OpenAI": [
-                "openai/gpt-4o-mini-2024-07-18",
-                "openai/chatgpt-4o-latest",
-                "openai/o3",
-                "openai/o4-mini-high",
-                "openai/gpt-4.1-mini",
-                "openai/gpt-4.1"
+                "openai/gpt-5.1",                    # NEWER than GPT-4.1
+                "openai/gpt-5.1-chat",               # Fast/Instant version
+                "openai/gpt-4o-2024-11-20"           # Latest stable 4o snapshot
             ],
-            "X AI": [
-                "x-ai/grok-vision-beta",
-                "x-ai/grok-2-vision-1212"
+            "xAI": [
+                "x-ai/grok-4.1-fast",                # NEWER than Grok 2
+                "x-ai/grok-vision-beta"
             ],
-            "Mistral AI": [
-                "mistralai/pixtral-large-2411"
+            "Anthropic": [
+                "anthropic/claude-3.5-sonnet",       # Still the most stable SOTA (3.7 not verified on OR yet)
+                "anthropic/claude-3-opus"
             ],
-            "Microsoft": [
-                "microsoft/phi-4-multimodal-instruct"
+            "Mistral": [
+                "mistralai/pixtral-large-2411"       # Best Mistral Vision model
+            ],
+            "Minimax": [
+                "minimax/minimax-m2"                 # Near-frontier multimodal model
             ]
         }
     }
