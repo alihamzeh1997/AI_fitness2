@@ -466,7 +466,7 @@ def main():
     st.write("Upload a fitness video to analyze exercises, count reps, and evaluate form using AI.")
     
     # Define model options organized by provider
-model_options = {
+    model_options = {
         "Free Models": {
             "Google": [
                 "google/gemini-2.0-flash-thinking-exp:free", # Still a great free option
