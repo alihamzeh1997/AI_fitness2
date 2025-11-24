@@ -469,47 +469,47 @@ def main():
     model_options = {
         "Free Models": {
             "Google": [
-                "google/gemini-2.0-flash-thinking-exp:free", # Still a great free option
-                "google/gemini-2.0-pro-exp-02-05:free"
+                "google/gemini-2.0-flash-exp:free", # Still a great free option
             ],
             "NVIDIA": [
-                "nvidia/nemotron-nano-12b-2-vl:free" # SOTA Small Vision Model (Verified Free)
+                "nvidia/nemotron-nano-12b-v2-vl:free" # SOTA Small Vision Model (Verified Free)
             ],
-            "Meta": [
-                "meta-llama/llama-3.2-11b-vision-instruct:free",
-                "meta-llama/llama-3.2-90b-vision-instruct:free"
+            "Mistral": [
+                "mistralai/mistral-small-3.2-24b-instruct:free",
             ],
             "Qwen": [
-                "qwen/qwen-2.5-vl-72b-instruct:free" # The latest Vision-Language Qwen
+                "qwen/qwen2.5-vl-32b-instruct:free" # The latest Vision-Language Qwen
             ],
-            "Allen AI": [
-                "allenai/molmo-7b-d-0924:free" # Excellent specialized vision model
+            "X AI": [
+                "x-ai/grok-4.1-fast:free" # Excellent specialized vision model
             ]
         },
         "Premium Models": {
             "Google": [
                 "google/gemini-3-pro-preview",       # CONFIRMED: The new 1M context flagship
                 "google/gemini-3-pro-image-preview", # AKA "Nano Banana Pro" - Top tier multimodal
-                "google/gemini-2.5-flash-preview"
+                "google/gemini-2.5-flash-preview-09-2025"
             ],
             "OpenAI": [
-                "openai/gpt-5.1",                    # NEWER than GPT-4.1
-                "openai/gpt-5.1-chat",               # Fast/Instant version
-                "openai/gpt-4o-2024-11-20"           # Latest stable 4o snapshot
+                "openai/gpt-5.1",                
+                "openai/gpt-5-pro",
+                "openai/gpt-5-mini",
+                "openai/gpt-5.1-chat",              
+                "openai/gpt-4.1"          
             ],
             "xAI": [
                 "x-ai/grok-4.1-fast",                # NEWER than Grok 2
-                "x-ai/grok-vision-beta"
+                "x-ai/grok-4"
             ],
             "Anthropic": [
-                "anthropic/claude-3.5-sonnet",       # Still the most stable SOTA (3.7 not verified on OR yet)
-                "anthropic/claude-3-opus"
+                "anthropic/claude-opus-4.5",       # Still the most stable SOTA (3.7 not verified on OR yet)
+                "anthropic/claude-sonnet-4.5"
             ],
             "Mistral": [
-                "mistralai/pixtral-large-2411"       # Best Mistral Vision model
+                "mistralai/mistral-medium-3.1"       # Best Mistral Vision model
             ],
-            "Minimax": [
-                "minimax/minimax-m2"                 # Near-frontier multimodal model
+            "DeepSeek": [
+                "deepseek/deepseek-chat-v3.1"                 # Near-frontier multimodal model
             ]
         }
     }
